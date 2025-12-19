@@ -52,6 +52,9 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Check for OpenAI API key (support both OPENAI_API_KEY and CHATGPT_API_KEY)
+    const openaiKey = process.env.OPENAI_API_KEY || process.env.CHATGPT_API_KEY
+    
     // Try Gemini 2.0 first, fallback to ChatGPT if available
     let geminiError: any = null
     
@@ -92,17 +95,21 @@ export async function POST(request: NextRequest) {
       } catch (error: any) {
         console.error("Gemini API error:", error)
         geminiError = error
-        // Fall through to ChatGPT if available
+        // Fall through to ChatGPT if available (especially for quota errors)
+        if (!openaiKey) {
+          // Only throw if no ChatGPT fallback available
+          throw error
+        }
       }
     }
     
     // Fallback to ChatGPT Vision API
-    if (process.env.OPENAI_API_KEY) {
+    if (openaiKey) {
       try {
         const openaiResponse = await fetch("https://api.openai.com/v1/chat/completions", {
           method: "POST",
           headers: {
-            "Authorization": `Bearer ${process.env.OPENAI_API_KEY}`,
+            "Authorization": `Bearer ${openaiKey}`,
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
@@ -153,7 +160,7 @@ export async function POST(request: NextRequest) {
     }
     
     return NextResponse.json(
-      { error: "Neither GEMINI_API_KEY nor OPENAI_API_KEY is configured" },
+      { error: "Neither GEMINI_API_KEY nor OPENAI_API_KEY/CHATGPT_API_KEY is configured" },
       { status: 500 }
     )
   } catch (error: any) {
