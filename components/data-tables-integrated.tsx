@@ -39,6 +39,7 @@ import { Progress } from "@/components/ui/progress"
 import { useTradeStore } from "@/lib/store"
 import type { Trade, Instrument, Session, BreakType, TPType, BEType } from "@/lib/types"
 import { BulkImageUpload } from "@/components/bulk-image-upload"
+import { ScreenshotManager } from "@/components/screenshot-manager"
 
 type SortField = 'date' | 'resultR' | 'instrument' | 'session' | 'breakType'
 type SortDirection = 'asc' | 'desc'
@@ -332,6 +333,10 @@ export function DataTablesIntegrated() {
           <TabsTrigger value="upload">
             <IconUpload className="size-4 mr-2" />
             Bulk Upload
+          </TabsTrigger>
+          <TabsTrigger value="screenshots">
+            <IconPhoto className="size-4 mr-2" />
+            Saved Screenshots
           </TabsTrigger>
         </TabsList>
 
@@ -645,6 +650,10 @@ export function DataTablesIntegrated() {
 
         <TabsContent value="upload" className="mt-4">
           <BulkImageUpload />
+        </TabsContent>
+
+        <TabsContent value="screenshots" className="mt-4">
+          <ScreenshotManager />
         </TabsContent>
       </Tabs>
     </div>
