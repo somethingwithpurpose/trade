@@ -122,7 +122,14 @@ export function BulkImageUpload() {
 
         if (!response.ok) {
           const errorData = await response.json().catch(() => ({ error: 'Unknown error' }))
-          throw new Error(errorData.error || `Failed to analyze image: ${response.status} ${response.statusText}`)
+          const errorMessage = errorData.error || `Failed to analyze image: ${response.status} ${response.statusText}`
+          
+          // Check if it's a quota error
+          if (errorMessage.includes('quota') || errorMessage.includes('Quota exceeded') || response.status === 429) {
+            throw new Error(`API quota exceeded. Please check your billing or try again later.`)
+          }
+          
+          throw new Error(errorMessage)
         }
 
         const extractedData = await response.json()
@@ -149,13 +156,23 @@ export function BulkImageUpload() {
         )
       } catch (error) {
         console.error('Error processing image:', error)
+        const errorMessage = error instanceof Error ? error.message : 'Failed to analyze image'
+        
+        // Extract a cleaner error message for quota errors
+        let displayError = errorMessage
+        if (errorMessage.includes('quota') || errorMessage.includes('Quota exceeded')) {
+          displayError = 'API quota exceeded. Please check your billing or wait before retrying.'
+        } else if (errorMessage.includes('Both APIs')) {
+          displayError = 'Both Gemini and OpenAI quotas exceeded. Please check billing or wait before retrying.'
+        }
+        
         setImages((prev) =>
           prev.map((img) =>
             img.id === image.id
               ? {
                   ...img,
                   status: 'error' as const,
-                  error: 'Failed to analyze image',
+                  error: displayError,
                 }
               : img
           )

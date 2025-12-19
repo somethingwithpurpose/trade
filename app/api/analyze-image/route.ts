@@ -95,10 +95,23 @@ export async function POST(request: NextRequest) {
       } catch (error: any) {
         console.error("Gemini API error:", error)
         geminiError = error
+        // Check if it's a quota error
+        const isQuotaError = error?.message?.includes("quota") || 
+                            error?.message?.includes("Quota exceeded") ||
+                            error?.message?.includes("429")
+        
         // Fall through to ChatGPT if available (especially for quota errors)
         if (!openaiKey) {
           // Only throw if no ChatGPT fallback available
+          if (isQuotaError) {
+            throw new Error("Gemini API quota exceeded. Please add OPENAI_API_KEY or CHATGPT_API_KEY as fallback, or check your Gemini billing.")
+          }
           throw error
+        }
+        
+        // Log fallback attempt
+        if (isQuotaError) {
+          console.log("Gemini quota exceeded, attempting ChatGPT fallback...")
         }
       }
     }
@@ -137,7 +150,17 @@ export async function POST(request: NextRequest) {
         
         if (!openaiResponse.ok) {
           const errorData = await openaiResponse.json().catch(() => ({}))
-          throw new Error(`OpenAI API error: ${errorData.error?.message || "Unknown error"}`)
+          const openaiErrorMsg = errorData.error?.message || "Unknown error"
+          
+          // Check if OpenAI also has quota issues
+          if (openaiErrorMsg.includes("quota") || openaiErrorMsg.includes("Quota exceeded") || openaiResponse.status === 429) {
+            if (geminiError) {
+              throw new Error(`Both APIs have quota limits exceeded. Please check billing for both Gemini and OpenAI accounts, or wait before retrying.`)
+            }
+            throw new Error(`OpenAI API quota exceeded: ${openaiErrorMsg}`)
+          }
+          
+          throw new Error(`OpenAI API error: ${openaiErrorMsg}`)
         }
         
         const openaiData = await openaiResponse.json()
@@ -146,9 +169,20 @@ export async function POST(request: NextRequest) {
         return NextResponse.json(content)
       } catch (openaiError: any) {
         console.error("OpenAI API error:", openaiError)
-        // If both fail, throw combined error
+        // If both fail, throw combined error with clearer message
         if (geminiError) {
-          throw new Error(`Both APIs failed. Gemini: ${geminiError?.message || "Unknown"}, OpenAI: ${openaiError?.message || "Unknown"}`)
+          const geminiMsg = geminiError?.message || "Unknown"
+          const openaiMsg = openaiError?.message || "Unknown"
+          
+          // Check if both are quota errors
+          const bothQuota = (geminiMsg.includes("quota") || geminiMsg.includes("Quota exceeded")) &&
+                           (openaiMsg.includes("quota") || openaiMsg.includes("Quota exceeded"))
+          
+          if (bothQuota) {
+            throw new Error(`Both Gemini and OpenAI APIs have exceeded their quota limits. Please check billing for both accounts or wait before retrying.`)
+          }
+          
+          throw new Error(`Both APIs failed. Gemini: ${geminiMsg.substring(0, 150)}, OpenAI: ${openaiMsg.substring(0, 150)}`)
         }
         throw openaiError
       }
