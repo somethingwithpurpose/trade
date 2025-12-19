@@ -13,7 +13,7 @@ export function Waveform({ isActive, className }: WaveformProps) {
   const audioContextRef = React.useRef<AudioContext | null>(null)
   const analyserRef = React.useRef<AnalyserNode | null>(null)
   const streamRef = React.useRef<MediaStream | null>(null)
-  const animationFrameRef = React.useRef<number>()
+  const animationFrameRef = React.useRef<number | null>(null)
 
   React.useEffect(() => {
     if (isActive) {

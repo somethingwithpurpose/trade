@@ -105,6 +105,7 @@ export interface Trade {
   
   // Notes
   notes?: string
+  tags?: string[]
   
   // Metadata
   createdAt: Date

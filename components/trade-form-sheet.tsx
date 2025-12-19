@@ -412,7 +412,7 @@ export function TradeFormSheet({
                 </div>
                 <Slider
                   value={confidence}
-                  onValueChange={setConfidence}
+                  onValueChange={(value) => setConfidence(Array.isArray(value) ? value : [value])}
                   min={1}
                   max={5}
                   step={1}
@@ -449,7 +449,7 @@ export function TradeFormSheet({
                   <Label>Take Profit Type</Label>
                   <Select value={tpType} onValueChange={(v) => setTpType(v as TPType)}>
                     <SelectTrigger>
-                      <SelectValue placeholder="Select TP type" />
+                      <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
                       {tpTypes.map((t) => (
@@ -463,7 +463,7 @@ export function TradeFormSheet({
                   <Label>Stop Loss Type</Label>
                   <Select value={slType} onValueChange={(v) => setSlType(v as SLType)}>
                     <SelectTrigger>
-                      <SelectValue placeholder="Select SL type" />
+                      <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
                       {slTypes.map((s) => (
@@ -479,7 +479,7 @@ export function TradeFormSheet({
                   <Label>Break-Even Type</Label>
                   <Select value={beType} onValueChange={(v) => setBeType(v as BEType)}>
                     <SelectTrigger>
-                      <SelectValue placeholder="Select BE type" />
+                      <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
                       {beTypes.map((b) => (
@@ -493,7 +493,7 @@ export function TradeFormSheet({
                   <Label>Break Type</Label>
                   <Select value={breakType} onValueChange={(v) => setBreakType(v as BreakType)}>
                     <SelectTrigger>
-                      <SelectValue placeholder="Select break type" />
+                      <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
                       {breakTypes.map((b) => (
