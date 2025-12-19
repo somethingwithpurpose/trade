@@ -32,20 +32,34 @@ Return ONLY valid JSON, no markdown formatting.`
 
 export async function POST(request: NextRequest) {
   try {
-    const formData = await request.formData()
-    const file = formData.get("file") as File
+    // Support both FormData (file upload) and JSON (base64 from database)
+    const contentType = request.headers.get("content-type") || ""
+    let base64: string
+    let mimeType: string
+    let fileSize: number | null = null
     
-    if (!file) {
-      return NextResponse.json({ error: "No file provided" }, { status: 400 })
+    if (contentType.includes("application/json")) {
+      const body = await request.json()
+      base64 = body.base64
+      mimeType = body.mimeType || "image/png"
+      fileSize = body.fileSize || null
+    } else {
+      const formData = await request.formData()
+      const file = formData.get("file") as File
+      
+      if (!file) {
+        return NextResponse.json({ error: "No file provided" }, { status: 400 })
+      }
+
+      const arrayBuffer = await file.arrayBuffer()
+      base64 = Buffer.from(arrayBuffer).toString("base64")
+      mimeType = file.type || "image/png"
+      fileSize = file.size
     }
 
-    const arrayBuffer = await file.arrayBuffer()
-    const base64 = Buffer.from(arrayBuffer).toString("base64")
-    const mimeType = file.type || "image/png"
-
     // Validate file size (Gemini has limits - 20MB for images)
-    const fileSizeMB = file.size / (1024 * 1024)
-    if (fileSizeMB > 20) {
+    if (fileSize && fileSize > 20 * 1024 * 1024) {
+      const fileSizeMB = fileSize / (1024 * 1024)
       return NextResponse.json(
         { error: `File too large: ${fileSizeMB.toFixed(2)}MB. Maximum size is 20MB.` },
         { status: 400 }

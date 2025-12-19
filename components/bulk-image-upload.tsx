@@ -134,6 +134,37 @@ export function BulkImageUpload() {
 
         const extractedData = await response.json()
 
+        // Save to database
+        try {
+          const saveFormData = new FormData()
+          saveFormData.append('url', image.url)
+          saveFormData.append('filename', image.filename)
+          saveFormData.append('type', 'chart')
+          saveFormData.append('fileSize', image.file.size.toString())
+          saveFormData.append('mimeType', image.file.type)
+          saveFormData.append('aiExtractedData', JSON.stringify(extractedData))
+          
+          const saveResponse = await fetch('/api/screenshots/save', {
+            method: 'POST',
+            body: saveFormData,
+          })
+          
+          if (saveResponse.ok) {
+            const saved = await saveResponse.json()
+            // Store screenshot ID for future updates
+            setImages((prev) =>
+              prev.map((img) =>
+                img.id === image.id
+                  ? { ...img, screenshotId: saved.screenshot.id }
+                  : img
+              )
+            )
+          }
+        } catch (saveError) {
+          console.error('Failed to save screenshot to database:', saveError)
+          // Continue anyway - data is still in UI state
+        }
+
         setImages((prev) =>
           prev.map((img) =>
             img.id === image.id
