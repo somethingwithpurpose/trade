@@ -23,7 +23,23 @@ export async function POST(request: NextRequest) {
 
     const arrayBuffer = await file.arrayBuffer()
     const base64 = Buffer.from(arrayBuffer).toString("base64")
-    const mimeType = file.type
+    const mimeType = file.type || "image/png"
+
+    // Validate file size (Gemini has limits)
+    const fileSizeMB = file.size / (1024 * 1024)
+    if (fileSizeMB > 20) {
+      return NextResponse.json(
+        { error: `File too large: ${fileSizeMB.toFixed(2)}MB. Maximum size is 20MB.` },
+        { status: 400 }
+      )
+    }
+
+    if (!genAI) {
+      return NextResponse.json(
+        { error: "GEMINI_API_KEY is not configured" },
+        { status: 500 }
+      )
+    }
 
     const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" })
 
@@ -82,10 +98,19 @@ Return ONLY valid JSON, no markdown formatting.`
     const extracted = JSON.parse(jsonMatch[0])
     
     return NextResponse.json(extracted)
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error analyzing image:", error)
+    const errorMessage = error?.message || "Failed to analyze image"
+    const errorDetails = error?.stack || error?.toString() || "Unknown error"
+    
+    // Log full error details for debugging
+    console.error("Full error details:", errorDetails)
+    
     return NextResponse.json(
-      { error: "Failed to analyze image" },
+      { 
+        error: errorMessage,
+        details: process.env.NODE_ENV === 'development' ? errorDetails : undefined
+      },
       { status: 500 }
     )
   }

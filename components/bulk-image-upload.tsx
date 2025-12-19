@@ -121,7 +121,8 @@ export function BulkImageUpload() {
         })
 
         if (!response.ok) {
-          throw new Error('Failed to analyze image')
+          const errorData = await response.json().catch(() => ({ error: 'Unknown error' }))
+          throw new Error(errorData.error || `Failed to analyze image: ${response.status} ${response.statusText}`)
         }
 
         const extractedData = await response.json()
