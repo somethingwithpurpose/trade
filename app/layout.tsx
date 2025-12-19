@@ -7,6 +7,7 @@ import { AppSidebar } from "@/components/app-sidebar"
 import { Separator } from "@/components/ui/separator"
 import { ThemeProvider } from "@/components/theme-provider"
 import { ThemeToggle } from "@/components/theme-toggle"
+import { DataLoader } from "@/components/data-loader"
 
 const nunitoSans = Nunito_Sans({
   variable: "--font-sans",
@@ -45,6 +46,7 @@ export default function RootLayout({
                 <ThemeToggle />
               </header>
               <main className="flex-1 overflow-auto">
+                <DataLoader />
                 {children}
               </main>
             </SidebarInset>

@@ -121,7 +121,7 @@ export function TradeFormSheet({
     )
   }
 
-  const handleSave = () => {
+  const handleSave = async () => {
     const tradeData: Trade = {
       id: trade?.id || uuidv4(),
       instrument,
@@ -151,17 +151,17 @@ export function TradeFormSheet({
     }
 
     if (isEditing) {
-      updateTrade(trade.id, tradeData)
+      await updateTrade(trade.id, tradeData)
     } else {
-      addTrade(tradeData)
+      await addTrade(tradeData)
     }
 
     onOpenChange(false)
   }
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (trade && confirm("Are you sure you want to delete this trade?")) {
-      deleteTrade(trade.id)
+      await deleteTrade(trade.id)
       onOpenChange(false)
     }
   }

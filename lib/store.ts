@@ -3,6 +3,7 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import type { Trade, TradeDaySummary, FilterState, ChatMessage } from './types'
+import * as db from './store-db'
 
 // No hardcoded data - start with empty array
 // Helper to normalize dates
@@ -13,16 +14,19 @@ interface TradeStore {
   selectedTrade: Trade | null
   chatMessages: ChatMessage[]
   filters: FilterState
+  isLoading: boolean
   
   // Actions
-  addTrade: (trade: Trade) => void
-  updateTrade: (id: string, updates: Partial<Trade>) => void
-  deleteTrade: (id: string) => void
+  addTrade: (trade: Trade) => Promise<void>
+  updateTrade: (id: string, updates: Partial<Trade>) => Promise<void>
+  deleteTrade: (id: string) => Promise<void>
   setSelectedDate: (date: Date) => void
   setSelectedTrade: (trade: Trade | null) => void
-  addChatMessage: (message: ChatMessage) => void
+  addChatMessage: (message: ChatMessage) => Promise<void>
   setFilters: (filters: Partial<FilterState>) => void
   resetFilters: () => void
+  loadTrades: () => Promise<void>
+  loadChatMessages: () => Promise<void>
   
   // Computed
   getTradesForDate: (date: Date) => Trade[]
@@ -57,42 +61,119 @@ export const useTradeStore = create<TradeStore>()(
       selectedTrade: null,
       chatMessages: [],
       filters: defaultFilters,
+      isLoading: false,
 
-      addTrade: (trade) =>
-        set((state) => ({
-          trades: [...state.trades, {
+      loadTrades: async () => {
+        set({ isLoading: true })
+        try {
+          const trades = await db.fetchTrades()
+          set({ trades, isLoading: false })
+        } catch (error) {
+          console.error("Failed to load trades from database:", error)
+          set({ isLoading: false })
+        }
+      },
+
+      loadChatMessages: async () => {
+        try {
+          const messages = await db.fetchChatMessages()
+          set({ chatMessages: messages })
+        } catch (error) {
+          console.error("Failed to load chat messages from database:", error)
+        }
+      },
+
+      addTrade: async (trade) => {
+        try {
+          const normalizedTrade = {
             ...trade,
             date: trade.date instanceof Date ? trade.date : new Date(trade.date),
             createdAt: trade.createdAt instanceof Date ? trade.createdAt : new Date(trade.createdAt),
             updatedAt: trade.updatedAt instanceof Date ? trade.updatedAt : new Date(trade.updatedAt),
-          }],
-        })),
+          }
+          await db.createTrade(normalizedTrade)
+          set((state) => ({
+            trades: [...state.trades, normalizedTrade],
+          }))
+        } catch (error) {
+          console.error("Failed to save trade to database:", error)
+          // Fallback to local storage
+          set((state) => ({
+            trades: [...state.trades, {
+              ...trade,
+              date: trade.date instanceof Date ? trade.date : new Date(trade.date),
+              createdAt: trade.createdAt instanceof Date ? trade.createdAt : new Date(trade.createdAt),
+              updatedAt: trade.updatedAt instanceof Date ? trade.updatedAt : new Date(trade.updatedAt),
+            }],
+          }))
+        }
+      },
 
-      updateTrade: (id, updates) =>
-        set((state) => ({
-          trades: state.trades.map((t) =>
-            t.id === id ? { 
-              ...t, 
-              ...updates, 
-              date: updates.date ? (updates.date instanceof Date ? updates.date : new Date(updates.date)) : t.date,
-              updatedAt: new Date() 
-            } : t
-          ),
-        })),
+      updateTrade: async (id, updates) => {
+        try {
+          const state = get()
+          const existingTrade = state.trades.find((t) => t.id === id)
+          if (!existingTrade) return
+          
+          const updatedTrade = {
+            ...existingTrade,
+            ...updates,
+            date: updates.date ? (updates.date instanceof Date ? updates.date : new Date(updates.date)) : existingTrade.date,
+            updatedAt: new Date(),
+          }
+          await db.updateTrade(id, updatedTrade)
+          set((state) => ({
+            trades: state.trades.map((t) => (t.id === id ? updatedTrade : t)),
+          }))
+        } catch (error) {
+          console.error("Failed to update trade in database:", error)
+          // Fallback to local storage
+          set((state) => ({
+            trades: state.trades.map((t) =>
+              t.id === id ? { 
+                ...t, 
+                ...updates, 
+                date: updates.date ? (updates.date instanceof Date ? updates.date : new Date(updates.date)) : t.date,
+                updatedAt: new Date() 
+              } : t
+            ),
+          }))
+        }
+      },
 
-      deleteTrade: (id) =>
-        set((state) => ({
-          trades: state.trades.filter((t) => t.id !== id),
-        })),
+      deleteTrade: async (id) => {
+        try {
+          await db.deleteTrade(id)
+          set((state) => ({
+            trades: state.trades.filter((t) => t.id !== id),
+          }))
+        } catch (error) {
+          console.error("Failed to delete trade from database:", error)
+          // Fallback to local storage
+          set((state) => ({
+            trades: state.trades.filter((t) => t.id !== id),
+          }))
+        }
+      },
 
       setSelectedDate: (date) => set({ selectedDate: date }),
 
       setSelectedTrade: (trade) => set({ selectedTrade: trade }),
 
-      addChatMessage: (message) =>
-        set((state) => ({
-          chatMessages: [...state.chatMessages, message],
-        })),
+      addChatMessage: async (message) => {
+        try {
+          await db.createChatMessage(message)
+          set((state) => ({
+            chatMessages: [...state.chatMessages, message],
+          }))
+        } catch (error) {
+          console.error("Failed to save chat message to database:", error)
+          // Fallback to local storage
+          set((state) => ({
+            chatMessages: [...state.chatMessages, message],
+          }))
+        }
+      },
 
       setFilters: (filters) =>
         set((state) => ({
