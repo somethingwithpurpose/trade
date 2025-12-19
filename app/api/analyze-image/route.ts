@@ -25,19 +25,12 @@ export async function POST(request: NextRequest) {
     const base64 = Buffer.from(arrayBuffer).toString("base64")
     const mimeType = file.type || "image/png"
 
-    // Validate file size (Gemini has limits)
+    // Validate file size (Gemini has limits - 20MB for images)
     const fileSizeMB = file.size / (1024 * 1024)
     if (fileSizeMB > 20) {
       return NextResponse.json(
         { error: `File too large: ${fileSizeMB.toFixed(2)}MB. Maximum size is 20MB.` },
         { status: 400 }
-      )
-    }
-
-    if (!genAI) {
-      return NextResponse.json(
-        { error: "GEMINI_API_KEY is not configured" },
-        { status: 500 }
       )
     }
 
