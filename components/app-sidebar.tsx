@@ -68,7 +68,7 @@ export function AppSidebar() {
                 <IconFlask className="size-4" />
               </div>
               <div className="grid flex-1 text-left text-sm leading-tight">
-                <span className="truncate font-semibold">EdgeLab</span>
+                <span className="truncate font-semibold">Cale & Teek Terminal</span>
                 <span className="truncate text-xs text-muted-foreground">
                   Trading Analytics
                 </span>

@@ -67,26 +67,64 @@ export function ImageUploader({
     const unprocessed = screenshots.filter((s) => !s.aiProcessed)
     
     for (let i = 0; i < unprocessed.length; i++) {
-      // Simulate AI processing - replace with actual Gemini Vision API call
-      await new Promise((resolve) => setTimeout(resolve, 500))
-      
       const screenshot = unprocessed[i]
-      const updatedScreenshots = screenshots.map((s) =>
-        s.id === screenshot.id
-          ? {
-              ...s,
-              aiProcessed: true,
-              aiExtractedData: {
-                marketStructure: "Bullish structure with higher highs",
-                breakType: "Range Break" as const,
-                entryStyle: "Breakout entry on retest",
-                htfAlignment: "HTF Aligned" as const,
-                sessionContext: "NY AM session volatility",
-              },
-            }
-          : s
-      )
-      onScreenshotsChange(updatedScreenshots)
+      
+      try {
+        // Convert blob URL to File object
+        const response = await fetch(screenshot.url)
+        const blob = await response.blob()
+        const file = new File([blob], screenshot.filename, { type: blob.type })
+        
+        // Call Gemini Vision API
+        const formData = new FormData()
+        formData.append('file', file)
+        
+        const apiResponse = await fetch('/api/analyze-image', {
+          method: 'POST',
+          body: formData,
+        })
+        
+        if (!apiResponse.ok) {
+          const errorData = await apiResponse.json()
+          throw new Error(errorData.error || 'Failed to analyze image')
+        }
+        
+        const extractedData = await apiResponse.json()
+        
+        const updatedScreenshots = screenshots.map((s) =>
+          s.id === screenshot.id
+            ? {
+                ...s,
+                aiProcessed: true,
+                aiExtractedData: {
+                  marketStructure: extractedData.marketStructure || undefined,
+                  breakType: extractedData.breakType || undefined,
+                  entryStyle: extractedData.entryStyle || undefined,
+                  htfAlignment: extractedData.htfLtfAlignment === 'Aligned' ? 'HTF Aligned' as const : extractedData.htfLtfAlignment === 'Contrary' ? 'Counter HTF' as const : undefined,
+                  sessionContext: extractedData.session || undefined,
+                  notes: extractedData.notes || undefined,
+                },
+              }
+            : s
+        )
+        onScreenshotsChange(updatedScreenshots)
+      } catch (error) {
+        console.error('Error processing screenshot:', error)
+        // Mark as processed but with error - could add error state if needed
+        const updatedScreenshots = screenshots.map((s) =>
+          s.id === screenshot.id
+            ? {
+                ...s,
+                aiProcessed: true,
+                aiExtractedData: {
+                  notes: `Error: ${error instanceof Error ? error.message : 'Failed to process'}`,
+                },
+              }
+            : s
+        )
+        onScreenshotsChange(updatedScreenshots)
+      }
+      
       setProcessingProgress(((i + 1) / unprocessed.length) * 100)
     }
 
